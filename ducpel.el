@@ -5,6 +5,7 @@
 ;; Author: Alex Kost <alezost@gmail.com>
 ;; Created: 31 Mar 2014
 ;; Version: 0.1
+;; Package-Requires: ((cl-lib "0.5"))
 ;; URL: https://github.com/alezost/ducpel
 ;; Keywords: games
 
