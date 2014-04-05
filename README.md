@@ -17,8 +17,8 @@ Clone the repo and add the following lines to your `.emacs`.
 
 ### Automatic
 
-The package can be installed with
-[quelpa](https://github.com/quelpa/quelpa) like this:
+The package can be installed from [MELPA](http://melpa.milkbox.net) or
+using [quelpa](https://github.com/quelpa/quelpa) like this:
 
 ```lisp
 (quelpa '(ducpel :fetcher github :repo "alezost/ducpel" :files ("*.el" "levels")))
@@ -63,7 +63,8 @@ If you found a better solution than the default one, and especially if
 you created a level, you may make a pull request or
 [open an issue](https://github.com/alezost/ducpel/issues/new).
 
-Making new levels is a priority.  A level file consists of 2 maps:
+Making new levels is a priority.  `artist-mode` can be useful during
+building a map.  A level file consists of 2 maps:
 
 - The main map (titled with `; Map`) defines:
 
