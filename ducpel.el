@@ -647,7 +647,7 @@ Return non-nil if the shift was successful, nil otherwise."
            ((eql ducpel-from-type ducpel-man)
             (cl-incf ducpel-power)
             (when (or (ducpel-move-object-to-floor)
-                      (ducpel-move-man-to-wall))
+                      (ducpel-move-object-to-wall))
               (ducpel-set-man-xy ducpel-from-x ducpel-from-y
                                  ducpel-to-x   ducpel-to-y)
               (setq success t)))
@@ -658,7 +658,7 @@ Return non-nil if the shift was successful, nil otherwise."
             (let ((new-from-plist
                    (cond
                     ((or (ducpel-move-object-to-floor)
-                         (ducpel-move-man-to-wall))
+                         (ducpel-move-object-to-wall))
                      (list :type ducpel-floor
                            :floor (plist-get ducpel-from-plist :floor)))
                     ((ducpel-move-man-to-emty)
@@ -675,6 +675,7 @@ Return non-nil if the shift was successful, nil otherwise."
                  (> ducpel-power 0))
             (cl-decf ducpel-power)
             (when (or (ducpel-move-object-to-floor)
+                      (ducpel-move-object-to-wall)
                       (ducpel-move-box-to-empty))
               (setq success t)))))))
     success))
@@ -694,8 +695,8 @@ return non-nil."
                      :floor (plist-get ducpel-to-plist :floor)
                      :box (plist-get ducpel-from-plist :box))))
 
-(defun ducpel-move-man-to-wall ()
-  "Try to move a man to a wall.
+(defun ducpel-move-object-to-wall ()
+  "Try to move an object (man or box) to a wall.
 If the move is possible, redraw the destination cell and
 return non-nil."
   (when (and (eql ducpel-to-type ducpel-wall)
