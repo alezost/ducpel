@@ -41,7 +41,7 @@
 ;; - arrow keys to move your man;
 ;; - TAB to switch to another man;
 ;; - "u" to undo a move;
-;; - SPC to activate a special cell (currently only exit cell is special);
+;; - SPC to activate a special cell (exit or teleport);
 ;; - "R" to restart the level;
 ;; - "N"/"P"/"L" to go to the next/previous/particular level.
 
@@ -228,16 +228,21 @@ Each element of the list is a list of the form (X Y).")
 (defvar ducpel-active-man-index 0
   "Index of the active man in `ducpel-men'.")
 
+(defvar ducpel-teleports nil
+  "List of coordinates of the teleports on the current level.
+Each element of the list is a list of the form (X Y).")
+
 (defvar ducpel-undo-list nil
   "List of full undo information.
 
 Each element of the list has a form:
 
-  (CELLS MEN ACTIVE)
+  (CELLS MEN ACTIVE TELEPORTS)
 
 CELLS has a form of `ducpel-undo-current-cells'.
 MEN has a form of `ducpel-undo-current-men'.
-ACTIVE has a form of `ducpel-undo-current-active-index'.")
+ACTIVE has a form of `ducpel-undo-current-active-index'.
+TELEPORTS has a form of `ducpel-undo-current-teleports'.")
 
 (defvar ducpel-undo-current-cells nil
   "List of changes of the cells made after the last move.
@@ -259,6 +264,11 @@ it means the coordinates of the man were not changed.")
 (defvar ducpel-undo-current-active-index nil
   "Index of the man that was active after the last move.
 If nil, it means the active man was not changed.")
+
+(defvar ducpel-undo-current-teleports nil
+  "List of coordinates of the teleports after the last move.
+Has a form of `ducpel-teleports'.
+If nil, it means teleports were not changed.")
 
 (defvar ducpel-moves 0
   "The number of moves for the current level.")
@@ -444,10 +454,15 @@ return nil; otherwise return index of the new active man."
                   ducpel-active-man-index))
         (setq ducpel-active-man-index index)))))
 
+(defun ducpel-get-active-cell-xy ()
+  "Return coordinates of the cell with the active man.
+Returning value is a list of the form (X Y)."
+  (aref ducpel-men ducpel-active-man-index))
+
 (defun ducpel-get-active-cell-plist ()
   "Return cell plist of the cell with the active man."
   (apply 'ducpel-get-cell-plist-by-xy
-         (aref ducpel-men ducpel-active-man-index)))
+         (ducpel-get-active-cell-xy)))
 
 (defun ducpel-next-man ()
   "Select next man."
@@ -492,8 +507,12 @@ Return non-nil if the action was successful."
       (ducpel-done-p t)
       (setq success t))
      ((eql floor ducpel-teleport)
-      ;; TODO implement teleporting
-      (message "This strange thing won't work."))
+      (if (null (cdr ducpel-teleports))
+          ;; If a single teleport on the map
+          (message "This strange thing looks broken.")
+        (if (ducpel-teleport-active-man)
+            (setq success t)
+          (message "Hm, perhaps the teleport is blocked."))))
      (t (message "Nothing interesting here.")))
     success))
 
@@ -504,6 +523,47 @@ Return non-nil if the move was successful."
   (cl-multiple-value-bind (x y)
       (ducpel-get-man-xy)
     (ducpel-move x y direction)))
+
+(defun ducpel-teleport-active-man ()
+  "Try to teleport active man to a free teleport cell.
+If the next teleport after the current one is blocked, try the
+next after it and so on.
+Return non-nil, if teleportation was successful."
+  (let* ((active-xy (ducpel-get-active-cell-xy))
+         (next-teleports (member active-xy ducpel-teleports)))
+    (or next-teleports
+        (error "Active man is not on the teleport cell"))
+    ;; Getting next free teleport: if the rest teleports are blocked,
+    ;; continue searching from the beginning of `ducpel-teleports'.
+    (let ((xy (or (ducpel-teleport-get-free-cell (cdr next-teleports))
+                  (ducpel-teleport-get-free-cell
+                   (cl-loop for teleport in ducpel-teleports
+                            until (equal teleport active-xy)
+                            collect teleport)))))
+      (when xy
+        (let ((from-x (car active-xy))
+              (from-y (cadr active-xy))
+              (to-x (car xy))
+              (to-y (cadr xy)))
+          (ducpel-set-cell
+           to-x to-y
+           :type ducpel-active-man :floor ducpel-teleport)
+          (ducpel-set-cell
+           from-x from-y
+           :type ducpel-floor :floor ducpel-teleport)
+          (ducpel-set-man-xy from-x from-y to-x to-y)
+          t)))))
+
+(defun ducpel-teleport-get-free-cell (cells)
+  "Return first free cell from a list of coordinates CELLS.
+Cell is free if it is a floor with no object (man or box) on it.
+Return nil if none of the cells is free."
+  (cl-loop for cell in cells
+           if (eql (plist-get
+                    (apply 'ducpel-get-cell-plist-by-xy cell)
+                    :type)
+                   ducpel-floor)
+           return cell))
 
 (defun ducpel-cell-can-move-p (floor-type direction)
   "Return non-nil, if a cell with FLOOR-TYPE can move in the DIRECTION.
@@ -723,6 +783,11 @@ return non-nil."
 If the move is possible, redraw the destination cell and
 return non-nil."
   (when (eql ducpel-to-type ducpel-empty)
+    (when (eql (plist-get ducpel-from-plist :box)
+               ducpel-teleport)
+      (setq ducpel-undo-current-teleports ducpel-teleports)
+      (push (list ducpel-to-x ducpel-to-y)
+            ducpel-teleports))
     (ducpel-set-cell ducpel-to-x ducpel-to-y
                      :type ducpel-floor
                      :floor (plist-get ducpel-from-plist :box))))
@@ -736,6 +801,7 @@ return non-nil."
 (defun ducpel-undo-reset-current ()
   "Reset current undo data to the default values."
   (setq ducpel-undo-current-cells nil
+        ducpel-undo-current-teleports nil
         ducpel-undo-current-men (make-vector (length ducpel-men) nil)
         ducpel-undo-current-active-index nil))
 
@@ -748,12 +814,13 @@ return non-nil."
   "Add undo info about the current move to `ducpel-undo-list'."
   (push (list ducpel-undo-current-cells
               ducpel-undo-current-men
-              ducpel-undo-current-active-index)
+              ducpel-undo-current-active-index
+              ducpel-undo-current-teleports)
         ducpel-undo-list)
   (ducpel-undo-reset-current))
 
-(defun ducpel-undo-changes (cells men active)
-  "Undo changes from CELLS, MEN and ACTIVE.
+(defun ducpel-undo-changes (cells men active teleports)
+  "Undo changes from CELLS, MEN, ACTIVE and TELEPORTS.
 For the meaning of arguments, see `ducpel-undo-list'."
   (mapc (lambda (change)
           (apply 'gamegrid-set-cell change))
@@ -763,7 +830,9 @@ For the meaning of arguments, see `ducpel-undo-list'."
       (and man
            (aset ducpel-men i man))))
   (and active
-       (setq ducpel-active-man-index active)))
+       (setq ducpel-active-man-index active))
+  (and teleports
+       (setq ducpel-teleports teleports)))
 
 (defun ducpel-undo ()
   "Undo previous move or action."
@@ -771,7 +840,8 @@ For the meaning of arguments, see `ducpel-undo-list'."
   ;; Undo possible switching of the men made since the last move
   (ducpel-undo-changes ducpel-undo-current-cells
                        ducpel-undo-current-men
-                       ducpel-undo-current-active-index)
+                       ducpel-undo-current-active-index
+                       ducpel-undo-current-teleports)
   (ducpel-undo-reset-current)
   ;; Undo the last move
   (let ((move-changes (pop ducpel-undo-list)))
@@ -1036,8 +1106,11 @@ Set the following variables: `ducpel-level-data',
                     (aset ducpel-level-data y line))))))
 
 (defun ducpel-init-buffer ()
-  "Fill current buffer with the level map."
+  "Fill current buffer with the level map.
+Set `ducpel-men', `ducpel-active-man-index' and
+`ducpel-teleports' variables."
   (gamegrid-init-buffer ducpel-width ducpel-height ?\s)
+  (setq ducpel-teleports nil)
   (let (men)
     (dotimes (y ducpel-height)
       (dotimes (x ducpel-width)
@@ -1051,7 +1124,9 @@ Set the following variables: `ducpel-level-data',
                ((eql type ducpel-active-man)
                 (push (list x y) men)
                 (setq ducpel-active-man-index
-                      (- (length men) 1)))))
+                      (- (length men) 1)))
+               ((eql (plist-get plist :floor) ducpel-teleport)
+                (push (list x y) ducpel-teleports))))
             (gamegrid-set-cell x y char)))))
     (setq ducpel-men
           (apply 'vector (nreverse men)))))
