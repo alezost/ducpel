@@ -31,8 +31,7 @@ Use `M-x ducpel` to start the game and the following keys to play:
 - <kbd>left</kbd>/<kbd>right</kbd>/<kbd>up</kbd>/<kbd>down</kbd> – move
   a man;
 - <kbd>TAB</kbd>/<kbd>S-TAB</kbd> – switch to the next/previous man;
-- <kbd>SPC</kbd> – activate a special cell (currently used only to
-  activate an exit cell);
+- <kbd>SPC</kbd> – activate a special cell (exit or teleport);
 - <kbd>u</kbd> – undo a move;
 
 Key bindings for levels:
