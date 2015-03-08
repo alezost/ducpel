@@ -17,7 +17,7 @@ Clone the repo and add the following lines to your `.emacs`.
 
 ### Automatic
 
-The package can be installed from [MELPA](http://melpa.milkbox.net) or
+The package can be installed from [MELPA](http://melpa.org) or
 using [quelpa](https://github.com/quelpa/quelpa) like this:
 
 ```lisp
