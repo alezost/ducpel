@@ -1,2 +1,3 @@
+tmp
 *.elc
-temp
+*-autoloads.el
