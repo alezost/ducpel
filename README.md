@@ -2,7 +2,7 @@
 
 Logic game with sokoban elements for GNU Emacs.
 
-![Level 1 in progress](https://raw.github.com/alezost/ducpel/master/pic/screenshot.png)
+![Level 1 in progress](pic/screenshot.png)
 
 ## Installation
 
