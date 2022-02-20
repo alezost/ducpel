@@ -1287,7 +1287,7 @@ TYPE (`ducpel-glyphs-...-colors') or from
 (defun ducpel-glyphs-get-image-params (data)
   "Return a list of image parameters.
 
-DATA should be a string with image data in XPM2 format without
+DATA should be a string with image data in XPM3 format without
 headers, with one character per pixel, and with a constant
 width (all lines should have the same amount of characters).
 
@@ -1312,14 +1312,22 @@ UNIQUE-CHARS is a list of all characters the DATA contains."
 For the meaning of DATA, see `ducpel-glyphs-get-image-params'.
 COLORS is alist of characters used in DATA and color values.
 WIDTH x HEIGHT is a size of the image."
-  (let* ((vals (format "%d %d %d 1"
+  (let* ((vals (format "\"%d %d %d 1\","
                        width height (length colors)))
          (colors (mapconcat
                   (lambda (assoc)
-                    (format "%c c %s" (car assoc) (cdr assoc)))
+                    (format "\"%c c %s\"," (car assoc) (cdr assoc)))
                   colors
                   "\n"))
-         (spec (format "! XPM2\n%s\n%s%s" vals colors data)))
+         (spec (string-join
+                `("/* XPM */"
+                  "static char * glyph[] = {"
+                  ,vals
+                  ,colors
+                  ,@(mapcar (lambda (line) (format "\"%s\"," line))
+                            (split-string data "\n" 'omit-nulls))
+                  "};")
+                "\n")))
     `((:type xpm :ascent center :data ,spec))))
 
 (defun ducpel-glyphs-get-image-spec-by-plist (&rest plist)
